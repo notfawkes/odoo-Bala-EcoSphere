@@ -1,21 +1,34 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../ui/Primitives';
 
-export function SectionTabs({ tabs, activeTab, onTabChange, disabledTabs = [] }: { tabs: string[]; activeTab?: string; onTabChange?: (tab: string) => void; disabledTabs?: string[]; }) {
-  const [internalActive, setInternalActive] = useState(tabs[0]);
-  const active = activeTab !== undefined ? activeTab : internalActive;
-  const setActive = onTabChange || setInternalActive;
+export function SectionTabs({ tabs, disabledTabs = [], activeTab, onChange }: { tabs: string[]; disabledTabs?: string[]; activeTab?: string; onChange?: (tab: string) => void }) {
+  const [internalActive, setInternalActive] = useState(activeTab || tabs[0]);
+
+  useEffect(() => {
+    if (activeTab !== undefined) {
+      setInternalActive(activeTab);
+    }
+  }, [activeTab]);
+
+  const handleTabClick = (t: string) => {
+    if (disabledTabs.includes(t)) return;
+    if (onChange) {
+      onChange(t);
+    } else {
+      setInternalActive(t);
+    }
+  };
 
   return (
     <div className="mb-5 flex gap-1 overflow-x-auto rounded-xl border border-[#E6EFE0] bg-white p-1 dark:border-[#1E3319] dark:bg-[#162212]">
       {tabs.map((t) => (
         <button
-          onClick={() => !disabledTabs.includes(t) && setActive(t)}
+          onClick={() => handleTabClick(t)}
           key={t}
           disabled={disabledTabs.includes(t)}
-          className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${active === t ? 'bg-[#EAF5E4] text-[#397B14] dark:bg-[#1E3319] dark:text-[#8ECA3C]' : disabledTabs.includes(t) ? 'cursor-not-allowed text-[#C5CEC2] dark:text-[#3A4A36]' : 'text-[#6B7280] hover:bg-[#F5F8F2] dark:text-[#8A9687] dark:hover:bg-[#1A2D16]'}`}
+          className={`whitespace-nowrap rounded-lg px-3 py-2 text-sm font-semibold transition-colors ${internalActive === t ? 'bg-[#EAF5E4] text-[#397B14] dark:bg-[#1E3319] dark:text-[#8ECA3C]' : disabledTabs.includes(t) ? 'cursor-not-allowed text-[#C5CEC2] dark:text-[#3A4A36]' : 'text-[#6B7280] hover:bg-[#F5F8F2] dark:text-[#8A9687] dark:hover:bg-[#1A2D16]'}`}
         >
           {t}
         </button>

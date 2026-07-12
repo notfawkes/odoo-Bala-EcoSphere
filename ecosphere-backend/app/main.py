@@ -6,10 +6,14 @@ import sqlite3
 import jwt
 from datetime import datetime, timedelta
 from typing import Optional
+# pyrefly: ignore [missing-import]
 from fastapi import FastAPI, HTTPException, Header, status
+# pyrefly: ignore [missing-import]
 from fastapi.middleware.cors import CORSMiddleware
+# pyrefly: ignore [missing-import]
 from pydantic import BaseModel
-
+# pyrefly: ignore [missing-import]
+from app.services.governance_router import router as governance_router      
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 # Helper: Parse local .env file
@@ -62,6 +66,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(governance_router)
+
 
 # Environmental Admin
 app.include_router(admin_goals.router, prefix="/admin")
