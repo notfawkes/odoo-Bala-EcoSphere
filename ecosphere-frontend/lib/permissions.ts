@@ -71,8 +71,8 @@ const routeAccess: Record<RouteFeature, Record<Role, boolean>> = {
   social:        { admin: true,  employee: true },
   governance:    { admin: true,  employee: true },
   gamification:  { admin: true,  employee: true },
-  reports:       { admin: true,  employee: false },
-  settings:      { admin: true,  employee: false },
+  reports:       { admin: true,  employee: true },
+  settings:      { admin: true,  employee: true },
   profile:       { admin: true,  employee: true },
 };
 
