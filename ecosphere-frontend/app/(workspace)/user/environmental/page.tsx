@@ -10,10 +10,10 @@ import {
   FilterBar,
   PageHeader,
   ProgressBar
-} from '@/app/components/ui/Primitives';
+} from '@/components/ui/Primitives';
 import { useAuth } from '@/context/AuthContext';
 import { getAccessLevel } from '@/lib/permissions';
-import { SectionTabs, Kpi, ViewOnlyBanner } from '@/app/components/common/Shared';
+import { SectionTabs, Kpi, ViewOnlyBanner } from '@/components/common/Shared';
 
 export default function EnvironmentalPage() {
   const { role } = useAuth();

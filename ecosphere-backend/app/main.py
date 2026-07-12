@@ -396,3 +396,105 @@ def get_me(authorization: Optional[str] = Header(None)):
         "department": department,
         "role": role
     }
+
+class UserUpdate(BaseModel):
+    name: str
+    title: str
+    department: str
+
+class PasswordChange(BaseModel):
+    old_password: str
+    new_password: str
+
+@app.post("/api/auth/update")
+def update_profile(data: UserUpdate, authorization: Optional[str] = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid authentication token"
+        )
+    
+    token = authorization.split(" ")[1]
+    payload = decode_access_token(token)
+    if not payload or "sub" not in payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token"
+        )
+        
+    email = payload["sub"]
+    initials = get_initials(data.name)
+    
+    conn = get_db_connection()
+    execute_query(conn, """
+        UPDATE users 
+        SET full_name = ?, initials = ?, designation = ?, department = ?
+        WHERE email = ?
+    """, (data.name, initials, data.title, data.department, email))
+    conn.commit()
+    
+    cursor = execute_query(conn, "SELECT email, full_name, initials, designation, department, role FROM users WHERE email = ?", (email,))
+    row = cursor.fetchone()
+    conn.close()
+    
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+        
+    email, full_name, initials, designation, department, role = row
+    return {
+        "email": email,
+        "name": full_name,
+        "initials": initials,
+        "title": designation,
+        "department": department,
+        "role": role
+    }
+
+@app.post("/api/auth/change-password")
+def change_password(data: PasswordChange, authorization: Optional[str] = Header(None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid authentication token"
+        )
+    
+    token = authorization.split(" ")[1]
+    payload = decode_access_token(token)
+    if not payload or "sub" not in payload:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired token"
+        )
+        
+    email = payload["sub"]
+    
+    conn = get_db_connection()
+    cursor = execute_query(conn, "SELECT hashed_password, salt FROM users WHERE email = ?", (email,))
+    row = cursor.fetchone()
+    
+    if not row:
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
+        
+    hashed_password, salt = row
+    if not verify_password(data.old_password, hashed_password, salt):
+        conn.close()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid current password"
+        )
+        
+    new_hash, new_salt = hash_password(data.new_password)
+    execute_query(conn, "UPDATE users SET hashed_password = ?, salt = ? WHERE email = ?", (new_hash, new_salt, email))
+    conn.commit()
+    conn.close()
+    
+    return {
+        "message": "Password changed successfully"
+    }
