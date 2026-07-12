@@ -11,20 +11,26 @@ export default function WorkspaceLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { role, isLoggedIn } = useAuth();
+  const { role, isLoggedIn, isInitialized } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
+    if (!isInitialized) return;
+    
     if (!isLoggedIn) {
       router.replace('/login');
     } else if (!canAccessPath(role, pathname)) {
-      router.replace('/dashboard');
+      router.replace(role === 'admin' ? '/admin/dashboard' : '/dashboard');
+    } else if (role === 'admin' && !pathname.startsWith('/admin')) {
+      router.replace(`/admin${pathname}`);
+    } else if (role !== 'admin' && pathname.startsWith('/admin')) {
+      router.replace(pathname.replace(/^\/admin/, ''));
     }
-  }, [isLoggedIn, role, pathname, router]);
+  }, [isInitialized, isLoggedIn, role, pathname, router]);
 
-  if (!isLoggedIn || !canAccessPath(role, pathname)) {
-    return null; // Return nothing while redirecting
+  if (!isInitialized || !isLoggedIn || !canAccessPath(role, pathname) || (role === 'admin' && !pathname.startsWith('/admin')) || (role !== 'admin' && pathname.startsWith('/admin'))) {
+    return null; // Return nothing while redirecting or initializing
   }
 
   return <AppShell>{children}</AppShell>;

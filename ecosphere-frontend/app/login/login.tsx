@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/app/components/ui/Primitives';
+import { Button } from '@/components/ui/Primitives';
 import { useAuth, Role } from '@/context/AuthContext';
 
 const roleOptions: { value: Role; label: string; icon: React.ElementType; description: string }[] = [
@@ -31,7 +31,7 @@ export default function LoginPage() {
   const handleSignIn = (e: React.FormEvent) => {
     e.preventDefault();
     login(selectedRole);
-    router.push(selectedRole === 'admin' ? '/admin/dashboard' : '/dashboard');
+    router.push('/dashboard');
   };
 
   return (
