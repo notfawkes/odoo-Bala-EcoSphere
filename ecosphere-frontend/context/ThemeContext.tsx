@@ -18,9 +18,21 @@ function getInitialTheme(): boolean {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [darkMode, setDarkMode] = useState(getInitialTheme);
+  const [darkMode, setDarkMode] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
+    setIsMounted(true);
+    const saved = localStorage.getItem('ecosphere_dark_mode');
+    if (saved !== null) {
+      setDarkMode(saved === 'true');
+    } else {
+      setDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!isMounted) return;
     const root = document.documentElement;
     if (darkMode) {
       root.classList.add('dark');
@@ -28,7 +40,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       root.classList.remove('dark');
     }
     localStorage.setItem('ecosphere_dark_mode', String(darkMode));
-  }, [darkMode]);
+  }, [darkMode, isMounted]);
 
   const toggleDarkMode = () => setDarkMode((prev) => !prev);
 
