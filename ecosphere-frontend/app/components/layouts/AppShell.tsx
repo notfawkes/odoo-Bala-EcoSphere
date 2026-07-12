@@ -71,7 +71,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         stiffness: 320,
         damping: 32
       }}
-      className="hidden min-h-screen shrink-0 flex-col border-r border-[#E6EFE0] bg-white p-3 dark:border-[#1E3319] dark:bg-[#111E0E] md:flex"
+      className="sticky top-0 hidden h-screen shrink-0 flex-col border-r border-[#E6EFE0] bg-white p-3 dark:border-[#1E3319] dark:bg-[#111E0E] md:flex"
     >
       <Link
         href="/dashboard"

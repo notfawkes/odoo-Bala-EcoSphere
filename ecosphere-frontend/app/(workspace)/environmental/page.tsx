@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PlusIcon } from 'lucide-react';
 import { transactions } from '@/lib/mockData';
 import {
@@ -19,41 +19,29 @@ export default function EnvironmentalPage() {
   const { role } = useAuth();
   const emissionAccess = getAccessLevel(role, 'emission_factors');
   const goalAccess = getAccessLevel(role, 'environmental_goals');
-  const [isCreating, setIsCreating] = useState(false);
 
-  const handleCreateGoal = async () => {
-    setIsCreating(true);
-    try {
-      // Create a sample goal using the admin route
-      const res = await fetch('http://localhost:8000/admin/environment/environmental-goals', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          // Using a dummy UUID for the organization_id. 
-          // Note: if the DB enforces this FK, this may throw a 500 error if it doesn't exist.
-          organization_id: 'fa59dce1-4435-4f3c-a9e2-ac38836ac3ea',
-          category: 'Energy',
-          title: 'Reduce Electricity',
-          target_value: 500.0,
-          current_value: 200.0,
-          unit: 'kWh',
-          deadline: '2026-12-31',
-          status: 'In Progress'
-        })
-      });
-      if (res.ok) {
-        alert('Goal created successfully!');
-      } else {
-        const errorText = await res.text();
-        alert('Failed to create goal: ' + errorText);
+  const [goals, setGoals] = useState<any[]>([]);
+  const [isLoadingGoals, setIsLoadingGoals] = useState(true);
+
+  useEffect(() => {
+    async function fetchGoals() {
+      try {
+        const res = await fetch('http://localhost:8000/employee/environment/environmental-goals');
+        if (res.ok) {
+          const data = await res.json();
+          // The common response structure is { items: [...] }
+          setGoals(data.items || data || []);
+        } else {
+          console.error('Failed to fetch goals');
+        }
+      } catch (error) {
+        console.error('Error fetching goals:', error);
+      } finally {
+        setIsLoadingGoals(false);
       }
-    } catch (error) {
-      console.error('Error creating goal:', error);
-      alert('Error connecting to backend');
-    } finally {
-      setIsCreating(false);
     }
-  };
+    fetchGoals();
+  }, []);
 
   return (
     <div>
@@ -63,14 +51,9 @@ export default function EnvironmentalPage() {
         description="Measure, manage, and reduce operational impact with one defensible environmental record."
         action={
           role === 'admin' ? (
-            <div className="flex gap-2">
-              <Button onClick={handleCreateGoal} disabled={isCreating}>
-                <PlusIcon size={16} /> {isCreating ? 'Creating...' : 'Create Sample Goal'}
-              </Button>
-              <Button>
-                <PlusIcon size={16} /> Add transaction
-              </Button>
-            </div>
+            <Button>
+              <PlusIcon size={16} /> Add transaction
+            </Button>
           ) : undefined
         }
       />
@@ -105,21 +88,28 @@ export default function EnvironmentalPage() {
           <h2 className="font-bold dark:text-[#E8F0E4]">Goal achievement</h2>
           <p className="mt-1 text-xs text-[#758171] dark:text-[#6B7B67]">FY26 reduction plan</p>
           <div className="mt-7 space-y-6">
-            {[
-              ['Renewable electricity', 82],
-              ['Reduce business travel', 64],
-              ['Zero waste to landfill', 43]
-            ].map(([title, value]) => (
-              <div key={title as string}>
-                <div className="mb-2 flex justify-between text-sm">
-                  <span className="font-semibold dark:text-[#E8F0E4]">{title as string}</span>
-                  <span className="font-bold text-[#397B14] dark:text-[#8ECA3C]">
-                    {value as number}%
-                  </span>
-                </div>
-                <ProgressBar value={value as number} />
-              </div>
-            ))}
+            {isLoadingGoals ? (
+              <p className="text-sm text-[#758171] dark:text-[#6B7B67]">Loading goals...</p>
+            ) : goals.length > 0 ? (
+              goals.map((goal) => {
+                const percentage = goal.target_value > 0 
+                  ? Math.min(100, Math.round((goal.current_value / goal.target_value) * 100)) 
+                  : 0;
+                return (
+                  <div key={goal.goal_id || goal.title}>
+                    <div className="mb-2 flex justify-between text-sm">
+                      <span className="font-semibold dark:text-[#E8F0E4]">{goal.title}</span>
+                      <span className="font-bold text-[#397B14] dark:text-[#8ECA3C]">
+                        {percentage}%
+                      </span>
+                    </div>
+                    <ProgressBar value={percentage} />
+                  </div>
+                );
+              })
+            ) : (
+              <p className="text-sm text-[#758171] dark:text-[#6B7B67]">No goals found.</p>
+            )}
           </div>
           <Button variant="secondary" className="mt-8 w-full">
             {goalAccess === 'view' ? 'View environmental goals' : 'View environmental goals'}
