@@ -1,5 +1,7 @@
 "use client";
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
+
 export type Role = 'admin' | 'employee';
 
 export interface User {
@@ -80,15 +82,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
-    // Bypassing authentication for now to prevent rendering issues
-    return {
-      role: 'admin',
-      setRole: () => {},
-      user: mockUsers.admin,
-      isLoggedIn: true,
-      login: () => {},
-      logout: () => {},
-    };
+    throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 }

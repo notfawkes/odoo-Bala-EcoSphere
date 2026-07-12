@@ -1,4 +1,4 @@
-import { Activity, Department, Metric, Notification } from '../types/index';
+import { Activity, Department, Metric, Notification } from '@/app/types/index';
 
 export const metrics: Metric[] = [
 {
