@@ -13,7 +13,7 @@ import {
   Modal
 } from '@/app/components/ui/Primitives';
 import { useAuth } from '@/context/AuthContext';
-import { getAccessLevel } from '@/config/permissions';
+import { getAccessLevel } from '@/lib/permissions';
 import { SectionTabs, Kpi, ViewOnlyBanner } from '@/app/components/common/Shared';
 
 export default function EnvironmentalPage() {
@@ -396,3 +396,4 @@ export default function EnvironmentalPage() {
     </div>
   );
 }
+//..........

@@ -20,16 +20,29 @@ export default function WorkspaceLayout({
     
     if (!isLoggedIn) {
       router.replace('/login');
-    } else if (!canAccessPath(role, pathname)) {
-      router.replace(role === 'admin' ? '/admin/dashboard' : '/dashboard');
-    } else if (role === 'admin' && !pathname.startsWith('/admin')) {
-      router.replace(`/admin${pathname}`);
-    } else if (role !== 'admin' && pathname.startsWith('/admin')) {
-      router.replace(pathname.replace(/^\/admin/, ''));
+      return;
+    } 
+    
+    if (!canAccessPath(role, pathname)) {
+      router.replace(role === 'admin' ? '/admin/dashboard' : '/user/dashboard');
+      return;
+    }
+
+    let baseRoute = pathname;
+    if (baseRoute.startsWith('/admin')) {
+      baseRoute = baseRoute.replace(/^\/admin/, '');
+    } else if (baseRoute.startsWith('/user')) {
+      baseRoute = baseRoute.replace(/^\/user/, '');
+    }
+    
+    const expectedPrefix = role === 'admin' ? '/admin' : '/user';
+    if (!pathname.startsWith(expectedPrefix)) {
+      router.replace(`${expectedPrefix}${baseRoute}`);
     }
   }, [isInitialized, isLoggedIn, role, pathname, router]);
 
-  if (!isInitialized || !isLoggedIn || !canAccessPath(role, pathname) || (role === 'admin' && !pathname.startsWith('/admin')) || (role !== 'admin' && pathname.startsWith('/admin'))) {
+  const expectedPrefix = role === 'admin' ? '/admin' : '/user';
+  if (!isInitialized || !isLoggedIn || !canAccessPath(role, pathname) || !pathname.startsWith(expectedPrefix)) {
     return null; // Return nothing while redirecting or initializing
   }
 

@@ -72,7 +72,7 @@ const routeAccess: Record<RouteFeature, Record<Role, boolean>> = {
   governance:    { admin: true,  employee: true },
   gamification:  { admin: true,  employee: true },
   reports:       { admin: true,  employee: false },
-  settings:      { admin: true,  employee: false },
+  settings:      { admin: true,  employee: true },
   profile:       { admin: true,  employee: true },
 };
 
@@ -101,7 +101,7 @@ const pathToRoute: Record<string, RouteFeature> = {
 };
 
 export function canAccessPath(role: Role, path: string): boolean {
-  const normalizedPath = path.replace(/^\/admin/, '');
+  const normalizedPath = path.replace(/^\/(admin|user)/, '');
   const route = pathToRoute[normalizedPath] || pathToRoute[path];
   if (!route) return true; // unknown routes are allowed
   return canAccessRoute(role, route);
