@@ -1,3 +1,4 @@
+
 import os
 import uuid
 import hashlib
@@ -27,11 +28,14 @@ def load_dotenv():
 
 load_dotenv()
 
+
+
 app = FastAPI(
     title="EcoSphere API",
     version="1.0.0",
     description="Backend API for EcoSphere ESG Management Platform"
 )
+
 
 # Enable CORS for frontend
 app.add_middleware(
@@ -244,10 +248,16 @@ def root():
         "message": "EcoSphere Backend Running"
     }
 
+
+
+
+
+
 @app.get("/health")
 def health():
     return {
         "status": "healthy"
+
     }
 
 @app.post("/api/auth/signup")
