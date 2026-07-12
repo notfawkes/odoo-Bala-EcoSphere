@@ -101,7 +101,7 @@ const pathToRoute: Record<string, RouteFeature> = {
 };
 
 export function canAccessPath(role: Role, path: string): boolean {
-  const normalizedPath = path.replace(/^\/admin/, '');
+  const normalizedPath = path.replace(/^\/(admin|user)/, '');
   const route = pathToRoute[normalizedPath] || pathToRoute[path];
   if (!route) return true; // unknown routes are allowed
   return canAccessRoute(role, route);
