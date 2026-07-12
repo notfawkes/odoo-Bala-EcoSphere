@@ -95,13 +95,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
       </Link>
       <nav className="flex flex-1 flex-col gap-1" aria-label="Primary navigation">
-        {filteredNav.map(([to, label, Icon]) => {
+        {filteredNav.map((item) => {
+          const [to, label, Icon] = item as [string, string, any];
           const isActive = pathname === to;
           return (
             <Link
-              key={to as string}
-              href={to as string}
-              title={collapsed ? label as string : undefined}
+              key={to}
+              href={to}
+              title={collapsed ? label : undefined}
               className={`flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold transition-colors ${
                 isActive
                   ? 'bg-[#EAF5E4] text-[#397B14] dark:bg-[#1E3319] dark:text-[#8ECA3C]'
@@ -115,13 +116,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         })}
       </nav>
       <div className="border-t border-[#EDF2E9] pt-3 dark:border-[#1E3319]">
-        {filteredSecondary.map(([to, label, Icon]) => {
+        {filteredSecondary.map((item) => {
+          const [to, label, Icon] = item as [string, string, any];
           const isActive = pathname === to;
           return (
             <Link
-              key={to as string}
-              href={to as string}
-              title={collapsed ? label as string : undefined}
+              key={to}
+              href={to}
+              title={collapsed ? label : undefined}
               className={`mb-1 flex h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold ${
                 isActive
                   ? 'bg-[#EAF5E4] text-[#397B14] dark:bg-[#1E3319] dark:text-[#8ECA3C]'
@@ -193,14 +195,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {/* Dark mode toggle for mobile */}
+            {/* Dark mode toggle */}
             <button
               onClick={toggleDarkMode}
-              className="grid h-10 w-10 place-items-center rounded-xl text-[#496046] hover:bg-white dark:text-[#8A9687] dark:hover:bg-[#1A2D16] md:hidden"
+              className="grid h-10 w-10 place-items-center rounded-xl text-[#496046] hover:bg-white dark:text-[#8A9687] dark:hover:bg-[#1A2D16]"
               aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {darkMode ? <SunIcon size={19} /> : <MoonIcon size={19} />}
             </button>
+            
+            {/* Settings button */}
+            <Link href={role === 'admin' ? '/admin/settings' : '/settings'}>
+              <button
+                className="grid h-10 w-10 place-items-center rounded-xl text-[#496046] hover:bg-white dark:text-[#8A9687] dark:hover:bg-[#1A2D16]"
+                title="Settings"
+                aria-label="Settings"
+              >
+                <SettingsIcon size={19} />
+              </button>
+            </Link>
             <button
               onClick={() => setNotificationsOpen(true)}
               className="relative grid h-10 w-10 place-items-center rounded-xl text-[#496046] hover:bg-white dark:text-[#8A9687] dark:hover:bg-[#1A2D16]"
@@ -265,13 +279,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 </button>
               </div>
               <nav className="space-y-1">
-                {allNavItems.map(([to, label, Icon]) => {
+                {allNavItems.map((item) => {
+                  const [to, label, Icon] = item as [string, string, any];
                   const isActive = pathname === to;
                   return (
                     <Link
                       onClick={() => setMobileOpen(false)}
-                      key={to as string}
-                      href={to as string}
+                      key={to}
+                      href={to}
                       className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold ${
                         isActive
                           ? 'bg-[#EAF5E4] text-[#397B14] dark:bg-[#1E3319] dark:text-[#8ECA3C]'
