@@ -36,12 +36,12 @@ export const departments: Department[] = [
 
 
 export const emissions = [
-{ month: 'Jan', value: 520 },
-{ month: 'Feb', value: 495 },
-{ month: 'Mar', value: 472 },
-{ month: 'Apr', value: 448 },
-{ month: 'May', value: 431 },
-{ month: 'Jun', value: 398 }];
+{ month: 'Jan', value: "520" },
+{ month: 'Feb', value: "495" },
+{ month: 'Mar', value: "472" },
+{ month: 'Apr', value: "448" },
+{ month: 'May', value: "431" },
+{ month: 'Jun', value: "398" }];
 
 
 export const distribution = [
