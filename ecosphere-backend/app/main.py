@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from app.routers.governance import router as governance_router
 
 app = FastAPI(
     title="EcoSphere API",
@@ -6,7 +7,7 @@ app = FastAPI(
     description="Backend API for EcoSphere ESG Management Platform"
 )
 
-
+app.include_router(governance_router)
 @app.get("/")
 def root():
     return {

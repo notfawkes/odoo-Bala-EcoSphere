@@ -9,9 +9,9 @@ import {
   DataTable,
   FilterBar,
   PageHeader
-} from '../../../../components/ui/Primitives';
+} from '../../../components/ui/Primitives';
 // Removed authentication to resolve rendering issues
-import { SectionTabs, Kpi, ViewOnlyBanner } from '../../../../components/common/Shared';
+import { SectionTabs, Kpi, ViewOnlyBanner } from '../../../components/common/Shared';
 
 export default function GovernancePage() {
   // Hardcoded access for testing/rendering
