@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { canAccessPath } from '@/lib/permissions';
-import { AppShell } from '@/components/layouts/AppShell';
+import { AppShell } from '@/app/components/layouts/AppShell';
 
 export default function WorkspaceLayout({
   children,

@@ -1,6 +1,6 @@
 import './globals.css';
-import { AuthProvider } from '@/context/AuthContext';
-import { ThemeProvider } from '@/context/ThemeContext';
+import { AuthProvider } from '../context/AuthContext';
+import { ThemeProvider } from '../context/ThemeContext';
 import { Inter } from 'next/font/google';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
