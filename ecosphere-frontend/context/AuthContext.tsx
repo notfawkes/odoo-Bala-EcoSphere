@@ -17,6 +17,7 @@ interface AuthContextType {
   setRole: (role: Role) => void;
   user: User;
   isLoggedIn: boolean;
+  isInitialized: boolean;
   login: (role: Role) => void;
   logout: () => void;
 }
@@ -42,19 +43,19 @@ const mockUsers: Record<Role, User> = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [role, setRoleState] = useState<Role>(() => {
-    if (typeof window !== 'undefined') {
-      const saved = sessionStorage.getItem('ecosphere_role');
-      return (saved as Role) || 'admin';
-    }
-    return 'admin';
-  });
-  const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return sessionStorage.getItem('ecosphere_logged_in') === 'true';
-    }
-    return false;
-  });
+  const [role, setRoleState] = useState<Role>('admin');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  useEffect(() => {
+    const savedRole = sessionStorage.getItem('ecosphere_role');
+    if (savedRole) setRoleState(savedRole as Role);
+    
+    const savedLoggedIn = sessionStorage.getItem('ecosphere_logged_in');
+    if (savedLoggedIn) setIsLoggedIn(savedLoggedIn === 'true');
+    
+    setIsInitialized(true);
+  }, []);
 
   const setRole = (newRole: Role) => {
     setRoleState(newRole);
@@ -77,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const user = mockUsers[role];
 
   return (
-    <AuthContext.Provider value={{ role, setRole, user, isLoggedIn, login, logout }}>
+    <AuthContext.Provider value={{ role, setRole, user, isLoggedIn, isInitialized, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

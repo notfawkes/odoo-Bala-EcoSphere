@@ -22,11 +22,11 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { notifications } from '@/lib/mockData';
+import { notifications } from '../../lib/mockData';
 import { StatusChip } from '../ui/Primitives';
-import { useAuth, roleLabels } from '@/context/AuthContext';
-import { useTheme } from '@/context/ThemeContext';
-import { canAccessPath } from '@/lib/permissions';
+import { useAuth, roleLabels } from '../../context/AuthContext';
+import { useTheme } from './ThemeContext';
+import { canAccessPath } from '../../lib/permissions';
 
 const navigation = [
   ['/dashboard', 'Dashboard', GaugeIcon],
@@ -52,16 +52,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { darkMode, toggleDarkMode } = useTheme();
 
   // Filter navigation items based on role
-  const getPath = (path: string) => role === 'admin' ? `/admin${path}` : path;
-  
-  const filteredNav = navigation
-    .filter(([path]) => canAccessPath(role, path as string))
-    .map(([path, label, Icon]) => [getPath(path as string), label, Icon]);
-    
-  const filteredSecondary = secondary
-    .filter(([path]) => canAccessPath(role, path as string))
-    .map(([path, label, Icon]) => [getPath(path as string), label, Icon]);
-    
+  const filteredNav = navigation.filter(([path]) => canAccessPath(role, path as string));
+  const filteredSecondary = secondary.filter(([path]) => canAccessPath(role, path as string));
   const allNavItems = [...filteredNav, ...filteredSecondary];
 
   const roleBadgeColor =
@@ -82,7 +74,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       className="hidden min-h-screen shrink-0 flex-col border-r border-[#E6EFE0] bg-white p-3 dark:border-[#1E3319] dark:bg-[#111E0E] md:flex"
     >
       <Link
-        href={role === 'admin' ? '/admin/dashboard' : '/dashboard'}
+        href="/dashboard"
         className="mb-8 flex items-center gap-3 px-3 pt-2"
       >
         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#499A13] text-white">
@@ -249,7 +241,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             >
               <div className="mb-7 flex items-center justify-between">
                 <Link
-                  href={role === 'admin' ? '/admin/dashboard' : '/dashboard'}
+                  href="/dashboard"
                   onClick={() => setMobileOpen(false)}
                   className="flex items-center gap-2 font-display text-3xl text-[#24421c] dark:text-[#C8E6B8]"
                 >

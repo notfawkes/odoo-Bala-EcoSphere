@@ -31,7 +31,7 @@ export default function LoginPage() {
   const handleSignIn = (e: React.FormEvent) => {
     e.preventDefault();
     login(selectedRole);
-    router.push('/dashboard');
+    router.push(selectedRole === 'admin' ? '/admin/dashboard' : '/dashboard');
   };
 
   return (

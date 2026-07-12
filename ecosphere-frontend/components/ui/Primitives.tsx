@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { ChevronDownIcon, SearchIcon } from 'lucide-react';
-import { Status } from '../../types';
+import { Status } from '../../types/index';
 type CardProps = {
   children: React.ReactNode;
   className?: string;
