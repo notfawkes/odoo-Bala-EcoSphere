@@ -43,11 +43,17 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [role, setRoleState] = useState<Role>(() => {
-    const saved = sessionStorage.getItem('ecosphere_role');
-    return (saved as Role) || 'admin';
+    if (typeof window !== 'undefined') {
+      const saved = sessionStorage.getItem('ecosphere_role');
+      return (saved as Role) || 'admin';
+    }
+    return 'admin';
   });
   const [isLoggedIn, setIsLoggedIn] = useState(() => {
-    return sessionStorage.getItem('ecosphere_logged_in') === 'true';
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('ecosphere_logged_in') === 'true';
+    }
+    return false;
   });
 
   const setRole = (newRole: Role) => {
