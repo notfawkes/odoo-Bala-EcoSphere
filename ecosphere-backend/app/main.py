@@ -1,4 +1,5 @@
 import os
+import uuid
 import hashlib
 import sqlite3
 import jwt
@@ -142,31 +143,50 @@ def init_db():
     is_postgres = "psycopg2" in str(type(conn))
     
     if is_postgres:
+        # PostgreSQL schema matching Neon DB structure, adding auth columns if not present
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
-                id SERIAL PRIMARY KEY,
+                user_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                organization_id UUID NULL,
+                full_name VARCHAR(255) NOT NULL,
                 email VARCHAR(255) UNIQUE NOT NULL,
-                hashed_password VARCHAR(255) NOT NULL,
-                salt VARCHAR(255) NOT NULL,
-                name VARCHAR(255) NOT NULL,
-                initials VARCHAR(50) NOT NULL,
-                title VARCHAR(255) NOT NULL,
-                department VARCHAR(255) NOT NULL,
-                role VARCHAR(50) NOT NULL
+                department VARCHAR(100) NULL,
+                designation VARCHAR(100) NULL,
+                role VARCHAR(50) NOT NULL,
+                status VARCHAR(30) DEFAULT 'active',
+                joined_date DATE DEFAULT CURRENT_DATE,
+                created_at TIMESTAMP DEFAULT now(),
+                hashed_password VARCHAR(255) NULL,
+                salt VARCHAR(255) NULL,
+                initials VARCHAR(50) NULL
             )
         """)
+        
+        # Alter table to add hashed_password, salt, initials just in case the table existed but without auth columns
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS hashed_password VARCHAR(255)")
+            cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS salt VARCHAR(255)")
+            cursor.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS initials VARCHAR(50)")
+        except Exception:
+            # Table might not exist yet or columns already exist; ignore
+            pass
     else:
+        # SQLite local fallback
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id TEXT PRIMARY KEY,
+                organization_id TEXT NULL,
+                full_name TEXT NOT NULL,
                 email TEXT UNIQUE NOT NULL,
+                department TEXT NULL,
+                designation TEXT NULL,
+                role TEXT NOT NULL,
+                status TEXT DEFAULT 'active',
+                joined_date TEXT,
+                created_at TEXT,
                 hashed_password TEXT NOT NULL,
                 salt TEXT NOT NULL,
-                name TEXT NOT NULL,
-                initials TEXT NOT NULL,
-                title TEXT NOT NULL,
-                department TEXT NOT NULL,
-                role TEXT NOT NULL
+                initials TEXT NOT NULL
             )
         """)
     conn.commit()
@@ -180,20 +200,24 @@ def init_db():
         admin_pass = os.getenv("SEED_ADMIN_PASSWORD", "password123")
         admin_name = os.getenv("SEED_ADMIN_NAME", "Maya Chen")
         maya_hash, maya_salt = hash_password(admin_pass)
+        
+        admin_id = str(uuid.uuid4())
         execute_query(conn, """
-            INSERT INTO users (email, hashed_password, salt, name, initials, title, department, role)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (admin_email, maya_hash, maya_salt, admin_name, get_initials(admin_name), "Platform Administrator", "Operations", "admin"))
+            INSERT INTO users (user_id, email, hashed_password, salt, full_name, initials, designation, department, role, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+        """, (admin_id, admin_email, maya_hash, maya_salt, admin_name, get_initials(admin_name), "Platform Administrator", "Operations", "admin"))
 
         # Seed default Employee
         emp_email = os.getenv("SEED_EMPLOYEE_EMAIL", "jordan@asterco.com")
         emp_pass = os.getenv("SEED_EMPLOYEE_PASSWORD", "password123")
         emp_name = os.getenv("SEED_EMPLOYEE_NAME", "Jordan Lee")
         jordan_hash, jordan_salt = hash_password(emp_pass)
+        
+        emp_id = str(uuid.uuid4())
         execute_query(conn, """
-            INSERT INTO users (email, hashed_password, salt, name, initials, title, department, role)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (emp_email, jordan_hash, jordan_salt, emp_name, get_initials(emp_name), "Product Designer", "Product", "employee"))
+            INSERT INTO users (user_id, email, hashed_password, salt, full_name, initials, designation, department, role, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+        """, (emp_id, emp_email, jordan_hash, jordan_salt, emp_name, get_initials(emp_name), "Product Designer", "Product", "employee"))
         conn.commit()
     conn.close()
 
@@ -238,7 +262,7 @@ def signup(data: UserSignup):
     conn = get_db_connection()
     
     # Check if user already exists
-    cursor = execute_query(conn, "SELECT id FROM users WHERE email = ?", (email_clean,))
+    cursor = execute_query(conn, "SELECT user_id FROM users WHERE email = ?", (email_clean,))
     if cursor.fetchone():
         conn.close()
         raise HTTPException(
@@ -246,19 +270,20 @@ def signup(data: UserSignup):
             detail="Email address already registered"
         )
     
-    # Compute user initials
+    # Compute user initials and generate a secure UUID for user_id
     initials = get_initials(data.name)
     hashed_pwd, salt = hash_password(data.password)
+    user_uuid = str(uuid.uuid4())
     
     # Save user
     execute_query(conn, """
-        INSERT INTO users (email, hashed_password, salt, name, initials, title, department, role)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    """, (email_clean, hashed_pwd, salt, data.name, initials, data.title, data.department, data.role))
+        INSERT INTO users (user_id, email, hashed_password, salt, full_name, initials, designation, department, role, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'active')
+    """, (user_uuid, email_clean, hashed_pwd, salt, data.name, initials, data.title, data.department, data.role))
     conn.commit()
     
     # Fetch inserted user details
-    cursor = execute_query(conn, "SELECT email, name, initials, title, department, role FROM users WHERE email = ?", (email_clean,))
+    cursor = execute_query(conn, "SELECT email, full_name, initials, designation, department, role FROM users WHERE email = ?", (email_clean,))
     user_row = cursor.fetchone()
     conn.close()
     
@@ -284,7 +309,7 @@ def login(data: UserLogin):
     email_clean = data.email.strip().lower()
     conn = get_db_connection()
     
-    cursor = execute_query(conn, "SELECT email, hashed_password, salt, name, initials, title, department, role FROM users WHERE email = ?", (email_clean,))
+    cursor = execute_query(conn, "SELECT email, hashed_password, salt, full_name, initials, designation, department, role FROM users WHERE email = ?", (email_clean,))
     row = cursor.fetchone()
     conn.close()
     
@@ -294,7 +319,13 @@ def login(data: UserLogin):
             detail="Invalid email or password"
         )
     
-    email, hashed_password, salt, name, initials, title, department, role = row
+    email, hashed_password, salt, full_name, initials, designation, department, role = row
+    if not hashed_password or not salt:
+         raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Login credentials not set. Please sign up or contact admin."
+        )
+         
     if not verify_password(data.password, hashed_password, salt):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -303,9 +334,9 @@ def login(data: UserLogin):
         
     user_data = {
         "email": email,
-        "name": name,
+        "name": full_name,
         "initials": initials,
-        "title": title,
+        "title": designation,
         "department": department,
         "role": role
     }
@@ -336,7 +367,7 @@ def get_me(authorization: Optional[str] = Header(None)):
     email = payload["sub"]
     
     conn = get_db_connection()
-    cursor = execute_query(conn, "SELECT email, name, initials, title, department, role FROM users WHERE email = ?", (email,))
+    cursor = execute_query(conn, "SELECT email, full_name, initials, designation, department, role FROM users WHERE email = ?", (email,))
     row = cursor.fetchone()
     conn.close()
     
@@ -346,12 +377,12 @@ def get_me(authorization: Optional[str] = Header(None)):
             detail="User not found"
         )
         
-    email, name, initials, title, department, role = row
+    email, full_name, initials, designation, department, role = row
     return {
         "email": email,
-        "name": name,
+        "name": full_name,
         "initials": initials,
-        "title": title,
+        "title": designation,
         "department": department,
         "role": role
     }
