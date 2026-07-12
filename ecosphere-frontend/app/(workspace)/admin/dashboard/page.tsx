@@ -1,6 +1,6 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Area,
@@ -27,12 +27,12 @@ import {
   TrophyIcon
 } from 'lucide-react';
 import {
-  activities,
+  activities as mockActivities,
   challenges,
-  departments,
-  distribution,
-  emissions,
-  metrics
+  departments as mockDepartments,
+  distribution as mockDistribution,
+  emissions as mockEmissions,
+  metrics as mockMetrics
 } from '@/lib/mockData';
 import {
   Button,
@@ -210,6 +210,101 @@ function EmployeeDashboard() {
 // Full org dashboard (Admin / ESG Manager)
 function OrgDashboard() {
   const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [data, setData] = useState({
+    metrics: mockMetrics,
+    emissions: mockEmissions,
+    distribution: mockDistribution,
+    departments: mockDepartments,
+    activities: mockActivities,
+    overallScore: 84
+  });
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [esgRes, factorsRes, transactionsRes, goalsRes] = await Promise.all([
+          fetch('http://127.0.0.1:8000/employee/environment/product-esg'),
+          fetch('http://127.0.0.1:8000/employee/environment/emission-factors'),
+          fetch('http://127.0.0.1:8000/employee/environment/carbon-transactions'),
+          fetch('http://127.0.0.1:8000/employee/environment/environmental-goals'),
+        ]);
+
+        const esgData = await esgRes.json();
+        const factorsData = await factorsRes.json();
+        const transactionsData = await transactionsRes.json();
+        const goalsData = await goalsRes.json();
+
+        let newDist = mockDistribution;
+        let overallScore = 84;
+        if (esgData.items && esgData.items.length > 0) {
+          const latest = esgData.items[0];
+          overallScore = latest.overall_score || 84;
+          newDist = [
+            { name: 'Environmental', value: latest.environmental_score, fill: '#499A13' },
+            { name: 'Social', value: latest.social_score, fill: '#8ECA3C' },
+            { name: 'Governance', value: latest.governance_score, fill: '#1E3319' },
+          ];
+        }
+
+        let newEmissions = mockEmissions;
+        let newDepartments = mockDepartments;
+        let totalEmissions = 0;
+
+        if (factorsData.items && factorsData.items.length > 0) {
+          const byMonth: Record<string, number> = {};
+          const byDept: Record<string, number> = {};
+          
+          factorsData.items.forEach((f: any) => {
+            totalEmissions += f.quantity;
+            const month = new Date(f.reporting_month).toLocaleString('default', { month: 'short' });
+            byMonth[month] = (byMonth[month] || 0) + f.quantity;
+            byDept[f.department] = (byDept[f.department] || 0) + f.quantity;
+          });
+
+          newEmissions = Object.entries(byMonth).map(([month, val]) => ({ month, value: val }));
+          newDepartments = Object.entries(byDept).map(([name, val]) => ({
+            name,
+            score: Math.round(100 - (val / totalEmissions) * 100),
+            lead: 'Department Lead',
+            trend: -5
+          }));
+        }
+
+        let newActivities = mockActivities;
+        if (transactionsData.items && transactionsData.items.length > 0) {
+          newActivities = transactionsData.items.map((t: any) => ({
+            title: `Reduced ${t.reduction_amount} tCO2e`,
+            detail: t.description,
+            time: new Date(t.completed_on).toLocaleDateString(),
+            kind: 'carbon'
+          }));
+        }
+
+        const newMetrics = [
+          { label: 'Overall ESG Score', value: Math.round(overallScore).toString(), change: '+2.4%', tone: 'dark' as const },
+          { label: 'Total Emissions', value: Math.round(totalEmissions).toString(), change: 'tCO2e', tone: 'light' as const },
+          { label: 'Active Goals', value: (goalsData.total || 0).toString(), change: 'On track', tone: 'light' as const },
+          { label: 'Carbon Reduced', value: transactionsData.items ? transactionsData.items.reduce((acc: number, t: any) => acc + Number(t.reduction_amount), 0).toString() : '0', change: 'tCO2e', tone: 'light' as const },
+        ];
+
+        setData({
+          metrics: newMetrics,
+          emissions: newEmissions.length ? newEmissions : mockEmissions,
+          distribution: newDist,
+          departments: newDepartments.length ? newDepartments : mockDepartments,
+          activities: newActivities.length ? newActivities : mockActivities,
+          overallScore
+        });
+      } catch (err) {
+        console.error('Failed to fetch dashboard data:', err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
   return (
     <div>
       <PageHeader
@@ -224,7 +319,7 @@ function OrgDashboard() {
       />
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        {metrics.map((metric, index) => (
+        {data.metrics.map((metric, index) => (
           <motion.div
             key={metric.label}
             initial={{ opacity: 0, y: 12 }}
@@ -265,13 +360,10 @@ function OrgDashboard() {
                 tCO₂e across managed operations
               </p>
             </div>
-            <span className="rounded-lg bg-[#EAF5E4] px-2 py-1 text-xs font-bold text-[#397B14] dark:bg-[#1E3319] dark:text-[#8ECA3C]">
-              −23.5%
-            </span>
           </div>
           <div className="h-[250px]" aria-label="Carbon emissions trend chart">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={emissions}>
+              <AreaChart data={data.emissions}>
                 <XAxis
                   dataKey="month"
                   axisLine={false}
@@ -311,13 +403,13 @@ function OrgDashboard() {
             <ResponsiveContainer>
               <PieChart>
                 <Pie
-                  data={distribution}
+                  data={data.distribution}
                   dataKey="value"
                   innerRadius={58}
                   outerRadius={82}
                   paddingAngle={5}
                 >
-                  {distribution.map((e) => (
+                  {data.distribution.map((e) => (
                     <Cell fill={e.fill} key={e.name} />
                   ))}
                 </Pie>
@@ -327,7 +419,7 @@ function OrgDashboard() {
             <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
               <div>
                 <p className="font-display text-5xl leading-none text-[#24421c] dark:text-[#C8E6B8]">
-                  84
+                  {Math.round(data.overallScore)}
                 </p>
                 <p className="text-[10px] font-bold uppercase text-[#758171] dark:text-[#6B7B67]">
                   Overall
@@ -336,7 +428,7 @@ function OrgDashboard() {
             </div>
           </div>
           <div className="flex justify-center gap-4">
-            {distribution.map((d) => (
+            {data.distribution.map((d) => (
               <div
                 className="flex items-center gap-1.5 text-[11px] text-[#667462] dark:text-[#8A9687]"
                 key={d.name}
@@ -367,7 +459,7 @@ function OrgDashboard() {
           <div className="mt-5 h-[255px]">
             <ResponsiveContainer>
               <BarChart
-                data={departments}
+                data={data.departments}
                 layout="vertical"
                 margin={{ left: 15 }}
               >
@@ -410,9 +502,9 @@ function OrgDashboard() {
             </button>
           </div>
           <div className="mt-4 divide-y divide-[#EEF3EB] dark:divide-[#1E3319]">
-            {activities.map((a) => {
+            {data.activities.map((a) => {
               // @ts-ignore
-              const Icon = iconMap[a.kind];
+              const Icon = iconMap[a.kind] || LeafIcon;
               return (
                 <div className="flex gap-3 py-3" key={a.title}>
                   <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#EAF5E4] text-[#499A13] dark:bg-[#1E3319] dark:text-[#8ECA3C]">
@@ -449,7 +541,7 @@ function OrgDashboard() {
             </Button>
           </div>
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            {departments.map((d) => (
+            {data.departments.map((d) => (
               <div
                 className="rounded-xl border border-[#E6EFE0] p-4 dark:border-[#1E3319]"
                 key={d.name}

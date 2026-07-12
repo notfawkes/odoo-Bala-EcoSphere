@@ -3,8 +3,11 @@
 import React, { useState } from 'react';
 import { Card } from '../ui/Primitives';
 
-export function SectionTabs({ tabs, disabledTabs = [] }: { tabs: string[]; disabledTabs?: string[]; }) {
-  const [active, setActive] = useState(tabs[0]);
+export function SectionTabs({ tabs, activeTab, onTabChange, disabledTabs = [] }: { tabs: string[]; activeTab?: string; onTabChange?: (tab: string) => void; disabledTabs?: string[]; }) {
+  const [internalActive, setInternalActive] = useState(tabs[0]);
+  const active = activeTab !== undefined ? activeTab : internalActive;
+  const setActive = onTabChange || setInternalActive;
+
   return (
     <div className="mb-5 flex gap-1 overflow-x-auto rounded-xl border border-[#E6EFE0] bg-white p-1 dark:border-[#1E3319] dark:bg-[#162212]">
       {tabs.map((t) => (
