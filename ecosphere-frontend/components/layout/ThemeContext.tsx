@@ -8,17 +8,17 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-function getInitialTheme(): boolean {
-  if (typeof window === 'undefined') return false;
-  const saved = localStorage.getItem('ecosphere_dark_mode');
-  if (saved !== null) {
-    return saved === 'true';
-  }
-  return window.matchMedia('(prefers-color-scheme: dark)').matches;
-}
-
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [darkMode, setDarkMode] = useState(getInitialTheme);
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('ecosphere_dark_mode');
+    if (saved !== null) {
+      setDarkMode(saved === 'true');
+    } else {
+      setDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
+    }
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
