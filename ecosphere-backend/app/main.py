@@ -8,6 +8,24 @@ from fastapi import FastAPI, HTTPException, Header, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+# Helper: Parse local .env file
+def load_dotenv():
+    # Looks for .env in the parent directory of this file (ecosphere-backend/.env)
+    env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+    if os.path.exists(env_path):
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, val = line.split("=", 1)
+                    # Remove surrounding quotes if present
+                    val_str = val.strip()
+                    if (val_str.startswith('"') and val_str.endswith('"')) or (val_str.startswith("'") and val_str.endswith("'")):
+                        val_str = val_str[1:-1]
+                    os.environ[key.strip()] = val_str
+
+load_dotenv()
+
 app = FastAPI(
     title="EcoSphere API",
     version="1.0.0",
@@ -28,7 +46,51 @@ SECRET_KEY = os.getenv("JWT_SECRET", "ecosphere-secret-key-for-jwt-tokens-2026-v
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 1 week token life
 
-DB_PATH = "ecosphere.db"
+# DB configurations
+DATABASE_URL = os.getenv("DATABASE_URL", "")
+DB_HOST = os.getenv("DB_HOST", "")
+DB_USER = os.getenv("DB_USER", "")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "")
+DB_NAME = os.getenv("DB_NAME", "")
+DB_PORT = os.getenv("DB_PORT", "5432")
+
+def get_db_connection():
+    if DATABASE_URL.startswith("postgres://") or DATABASE_URL.startswith("postgresql://"):
+        import psycopg2
+        conn_str = DATABASE_URL
+        if "sslmode=" not in conn_str:
+            if "?" in conn_str:
+                conn_str += "&sslmode=require"
+            else:
+                conn_str += "?sslmode=require"
+        # psycopg2 requires postgresql:// schema
+        if conn_str.startswith("postgres://"):
+            conn_str = conn_str.replace("postgres://", "postgresql://", 1)
+        return psycopg2.connect(conn_str)
+    elif DB_HOST and DB_USER:
+        import psycopg2
+        return psycopg2.connect(
+            host=DB_HOST,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            database=DB_NAME,
+            port=DB_PORT,
+            sslmode="require"
+        )
+    else:
+        # Fallback to local SQLite
+        conn = sqlite3.connect("ecosphere.db")
+        return conn
+
+def execute_query(conn, query: str, params: tuple = ()):
+    cursor = conn.cursor()
+    # Check if we are using PostgreSQL (psycopg2 connection type)
+    is_postgres = "psycopg2" in str(type(conn))
+    if is_postgres:
+        # Translate SQLite ? placeholder to PostgreSQL %s
+        query = query.replace("?", "%s")
+    cursor.execute(query, params)
+    return cursor
 
 # Helper: Password Hashing
 def hash_password(password: str, salt: Optional[str] = None) -> tuple[str, str]:
@@ -73,44 +135,69 @@ def get_initials(name: str) -> str:
 
 # Database Setup
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
+    conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            email TEXT UNIQUE NOT NULL,
-            hashed_password TEXT NOT NULL,
-            salt TEXT NOT NULL,
-            name TEXT NOT NULL,
-            initials TEXT NOT NULL,
-            title TEXT NOT NULL,
-            department TEXT NOT NULL,
-            role TEXT NOT NULL
-        )
-    """)
+    
+    # Check if postgres
+    is_postgres = "psycopg2" in str(type(conn))
+    
+    if is_postgres:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                email VARCHAR(255) UNIQUE NOT NULL,
+                hashed_password VARCHAR(255) NOT NULL,
+                salt VARCHAR(255) NOT NULL,
+                name VARCHAR(255) NOT NULL,
+                initials VARCHAR(50) NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                department VARCHAR(255) NOT NULL,
+                role VARCHAR(50) NOT NULL
+            )
+        """)
+    else:
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT UNIQUE NOT NULL,
+                hashed_password TEXT NOT NULL,
+                salt TEXT NOT NULL,
+                name TEXT NOT NULL,
+                initials TEXT NOT NULL,
+                title TEXT NOT NULL,
+                department TEXT NOT NULL,
+                role TEXT NOT NULL
+            )
+        """)
     conn.commit()
 
-    # Check if empty, then seed default users
-    cursor.execute("SELECT COUNT(*) FROM users")
-    if cursor.fetchone()[0] == 0:
-        # Seed Maya Chen (Admin)
-        maya_hash, maya_salt = hash_password("password123")
-        cursor.execute("""
+    # Seed mock users if empty
+    cursor = execute_query(conn, "SELECT COUNT(*) FROM users")
+    count = cursor.fetchone()[0]
+    if count == 0:
+        # Seed default Admin
+        admin_email = os.getenv("SEED_ADMIN_EMAIL", "maya@asterco.com")
+        admin_pass = os.getenv("SEED_ADMIN_PASSWORD", "password123")
+        admin_name = os.getenv("SEED_ADMIN_NAME", "Maya Chen")
+        maya_hash, maya_salt = hash_password(admin_pass)
+        execute_query(conn, """
             INSERT INTO users (email, hashed_password, salt, name, initials, title, department, role)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, ("maya@asterco.com", maya_hash, maya_salt, "Maya Chen", "MC", "Platform Administrator", "Operations", "admin"))
+        """, (admin_email, maya_hash, maya_salt, admin_name, get_initials(admin_name), "Platform Administrator", "Operations", "admin"))
 
-        # Seed Jordan Lee (Employee)
-        jordan_hash, jordan_salt = hash_password("password123")
-        cursor.execute("""
+        # Seed default Employee
+        emp_email = os.getenv("SEED_EMPLOYEE_EMAIL", "jordan@asterco.com")
+        emp_pass = os.getenv("SEED_EMPLOYEE_PASSWORD", "password123")
+        emp_name = os.getenv("SEED_EMPLOYEE_NAME", "Jordan Lee")
+        jordan_hash, jordan_salt = hash_password(emp_pass)
+        execute_query(conn, """
             INSERT INTO users (email, hashed_password, salt, name, initials, title, department, role)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, ("jordan@asterco.com", jordan_hash, jordan_salt, "Jordan Lee", "JL", "Product Designer", "Product", "employee"))
-        
+        """, (emp_email, jordan_hash, jordan_salt, emp_name, get_initials(emp_name), "Product Designer", "Product", "employee"))
         conn.commit()
     conn.close()
 
-# Initialize DB on import
+# Initialize DB
 init_db()
 
 # Pydantic schemas
@@ -141,7 +228,6 @@ def health():
 
 @app.post("/api/auth/signup")
 def signup(data: UserSignup):
-    # Basic email verification
     email_clean = data.email.strip().lower()
     if "@" not in email_clean:
         raise HTTPException(
@@ -149,11 +235,10 @@ def signup(data: UserSignup):
             detail="Invalid email address format"
         )
         
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+    conn = get_db_connection()
     
     # Check if user already exists
-    cursor.execute("SELECT id FROM users WHERE email = ?", (email_clean,))
+    cursor = execute_query(conn, "SELECT id FROM users WHERE email = ?", (email_clean,))
     if cursor.fetchone():
         conn.close()
         raise HTTPException(
@@ -166,14 +251,14 @@ def signup(data: UserSignup):
     hashed_pwd, salt = hash_password(data.password)
     
     # Save user
-    cursor.execute("""
+    execute_query(conn, """
         INSERT INTO users (email, hashed_password, salt, name, initials, title, department, role)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     """, (email_clean, hashed_pwd, salt, data.name, initials, data.title, data.department, data.role))
     conn.commit()
     
     # Fetch inserted user details
-    cursor.execute("SELECT email, name, initials, title, department, role FROM users WHERE email = ?", (email_clean,))
+    cursor = execute_query(conn, "SELECT email, name, initials, title, department, role FROM users WHERE email = ?", (email_clean,))
     user_row = cursor.fetchone()
     conn.close()
     
@@ -197,10 +282,9 @@ def signup(data: UserSignup):
 @app.post("/api/auth/login")
 def login(data: UserLogin):
     email_clean = data.email.strip().lower()
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
+    conn = get_db_connection()
     
-    cursor.execute("SELECT email, hashed_password, salt, name, initials, title, department, role FROM users WHERE email = ?", (email_clean,))
+    cursor = execute_query(conn, "SELECT email, hashed_password, salt, name, initials, title, department, role FROM users WHERE email = ?", (email_clean,))
     row = cursor.fetchone()
     conn.close()
     
@@ -251,9 +335,8 @@ def get_me(authorization: Optional[str] = Header(None)):
         
     email = payload["sub"]
     
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT email, name, initials, title, department, role FROM users WHERE email = ?", (email,))
+    conn = get_db_connection()
+    cursor = execute_query(conn, "SELECT email, name, initials, title, department, role FROM users WHERE email = ?", (email,))
     row = cursor.fetchone()
     conn.close()
     
